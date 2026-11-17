@@ -1,5 +1,5 @@
 body {
-    background-color: #F8E7C9;
+    background-color: #b8780b;
     font-family: Arial;
     text-align: center;
     margin: 40px;
@@ -22,10 +22,31 @@ input {
     margin: 10px auto;
 }
 
+/* La case à cocher garde sa taille normale */
+input[type="checkbox"] {
+    display: inline;
+    width: auto;
+    margin: 0 5px;
+}
+
+/* La liste déroulante a la même largeur que les champs */
+select {
+    display: block;
+    width: 272px;
+    padding: 10px;
+    margin: 10px auto;
+}
+
+/* Une seule page visible à la fois */
 .page {
     display: none;
 }
 
 .page.active {
     display: block;
+}
+
+/* Un élément avec l'attribut "hidden" est toujours caché */
+[hidden] {
+    display: none !important;
 }

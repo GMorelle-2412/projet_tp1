@@ -1,161 +1,421 @@
-// Nom de l'utilisateur connecté (null si personne n'est connecté)
-let utilisateur = null;
+// =============================================
+// Variables
+// =============================================
 
-// Affiche une seule page à la fois : retire "active" de toutes, puis l'ajoute à celle demandée
+// Mot de passe vérifié sur la page "Mon compte"
+var motDePasse = "";
+
+// Liste des comptes reçue du serveur (page administration)
+var comptes = [];
+
+
+// =============================================
+// Fonctions simples
+// =============================================
+
+// Est-ce que quelqu'un est connecté ?
+function estConnecte() {
+    return localStorage.getItem("token") !== null;
+}
+
+// Est-ce que l'utilisateur connecté est administrateur ?
+function estAdmin() {
+    return localStorage.getItem("admin") === "true";
+}
+
+// Affiche ou cache les boutons du menu
+function majMenu() {
+    var connecte = estConnecte();
+
+    document.getElementById("navConnexion").hidden = connecte;
+    document.getElementById("navInscription").hidden = connecte;
+    document.getElementById("navProfil").hidden = !connecte;
+    document.getElementById("navCompte").hidden = !connecte;
+    document.getElementById("navAdmin").hidden = !(connecte && estAdmin());
+}
+
+// Affiche une seule page à la fois
 function page(nom) {
- document.querySelectorAll(".page").forEach(function(element) {
-  element.classList.remove("active");
- });
+    // Les pages privées demandent d'être connecté
+    if ((nom === "profil" || nom === "compte" || nom === "admin") && !estConnecte()) {
+        nom = "connexion";
+    }
 
- document.getElementById(nom).classList.add("active");
+    // La page admin est réservée aux administrateurs
+    if (nom === "admin" && !estAdmin()) {
+        nom = "profil";
+    }
+
+    // On enlève "active" de toutes les pages
+    var pages = document.querySelectorAll(".page");
+    for (var i = 0; i < pages.length; i++) {
+        pages[i].classList.remove("active");
+    }
+
+    // On affiche la page demandée
+    document.getElementById(nom).classList.add("active");
+
+    // Actions à faire en arrivant sur certaines pages
+    if (nom === "profil") {
+        document.getElementById("profilNom").textContent = localStorage.getItem("username");
+    }
+    if (nom === "compte") {
+        reinitialiserCompte();
+    }
+    if (nom === "admin") {
+        chargerComptes("");
+    }
+
+    majMenu();
 }
 
-// Affiche la page d'accueil (menu) d'un utilisateur connecté
-function afficherAccueil(username, admin) {
- utilisateur = username;
- document.getElementById("profilNom").textContent = username;
- // Le lien vers l'administration n'est visible que pour un administrateur
- document.getElementById("lienAdmin").style.display = admin ? "block" : "none";
- page("profil");
+// Envoie une requête au serveur avec le token (pour les actions de l'utilisateur connecté)
+async function envoyer(url, methode, donnees) {
+    var options = {
+        method: methode,
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + localStorage.getItem("token")
+        }
+    };
+
+    // On ajoute les données seulement s'il y en a
+    if (donnees) {
+        options.body = JSON.stringify(donnees);
+    }
+
+    var reponse = await fetch(url, options);
+
+    // Token expiré ou invalide : on déconnecte
+    if (reponse.status === 401) {
+        deconnexion();
+    }
+
+    var resultat = await reponse.json();
+    return { ok: reponse.ok, donnees: resultat };
 }
 
-// Envoie le formulaire d'inscription au serveur
+
+// =============================================
+// Inscription
+// =============================================
 async function inscription() {
- let username = document.getElementById("nom").value;
- let password = document.getElementById("password").value;
- let nomFamille = document.getElementById("nomFamille").value;
- let prenom = document.getElementById("prenom").value;
- let mail = document.getElementById("mail").value;
- let message = document.getElementById("messageInscription");
+    var username = document.getElementById("nom").value;
+    var password = document.getElementById("password").value;
+    var nomFamille = document.getElementById("nomFamille").value;
+    var prenom = document.getElementById("prenom").value;
+    var mail = document.getElementById("mail").value;
+    var message = document.getElementById("messageInscription");
 
- // Vérifie que les champs ne sont pas vides avant d'appeler le serveur
- if (username === "" || password === "" || nomFamille === "" || prenom === "" || mail === "") {
-  message.textContent = "Remplis tous les champs.";
-  return;
- }
+    // On vérifie que tout est rempli
+    if (username === "" || password === "" || nomFamille === "" || prenom === "" || mail === "") {
+        message.textContent = "Remplis tous les champs.";
+        return;
+    }
 
- try {
-  // Requête POST vers /register avec les données en JSON
-  let reponse = await fetch("/register", {
-   method: "POST",
-   headers: {
-    "Content-Type": "application/json"
-   },
-   body: JSON.stringify({
-    login: username,
-    password: password,
-    nom: nomFamille,
-    prenom: prenom,
-    mail: mail
-   })
-  });
+    try {
+        var reponse = await fetch("/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                login: username,
+                password: password,
+                nom: nomFamille,
+                prenom: prenom,
+                mail: mail
+            })
+        });
 
-  let resultat = await reponse.json();
+        var resultat = await reponse.json();
+        message.textContent = resultat.message;
 
-  // Affiche la réponse du serveur (succès ou erreur)
-  message.textContent = resultat.message;
-
-  // Si tout s'est bien passé, on vide le formulaire et on passe à la connexion
-  if (reponse.ok) {
-   document.getElementById("nom").value = "";
-   document.getElementById("password").value = "";
-   document.getElementById("nomFamille").value = "";
-   document.getElementById("prenom").value = "";
-   document.getElementById("mail").value = "";
-
-   page("connexion");
-  }
-
- } catch (erreur) {
-  // Le serveur ne répond pas (arrêté, réseau coupé...)
-  message.textContent = "Impossible de contacter le serveur.";
- }
+        // Si ça a marché, on vide le formulaire et on va sur la connexion
+        if (reponse.ok) {
+            document.getElementById("nom").value = "";
+            document.getElementById("password").value = "";
+            document.getElementById("nomFamille").value = "";
+            document.getElementById("prenom").value = "";
+            document.getElementById("mail").value = "";
+            page("connexion");
+        }
+    } catch (erreur) {
+        message.textContent = "Impossible de contacter le serveur.";
+    }
 }
 
-// Envoie les identifiants au serveur et gère la réponse
+
+// =============================================
+// Connexion et déconnexion
+// =============================================
 async function connexion() {
- let username = document.getElementById("nomConnexion").value;
- let password = document.getElementById("passwordConnexion").value;
+    var username = document.getElementById("nomConnexion").value;
+    var password = document.getElementById("passwordConnexion").value;
+    var message = document.getElementById("messageConnexion");
 
- if (username === "" || password === "") {
-  document.getElementById("messageConnexion").textContent =
-   "Remplis tous les champs.";
-  return;
- }
+    if (username === "" || password === "") {
+        message.textContent = "Remplis tous les champs.";
+        return;
+    }
 
- try {
-  let reponse = await fetch("/login", {
-   method: "POST",
-   headers: {
-    "Content-Type": "application/json"
-   },
-   body: JSON.stringify({
-    login: username,
-    password: password
-   })
-  });
+    try {
+        var reponse = await fetch("/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ login: username, password: password })
+        });
 
-  let resultat = await reponse.json();
+        var resultat = await reponse.json();
 
-  // Échec : on affiche le message d'erreur du serveur
-  if (!reponse.ok || resultat.message !== "Connexion réussie") {
-   document.getElementById("messageConnexion").textContent =
-    resultat.message || "Connexion impossible.";
-   return;
-  }
+        // Si la connexion a échoué, on affiche le message du serveur
+        if (!reponse.ok || resultat.message !== "Connexion réussie") {
+            message.textContent = resultat.message || "Connexion impossible.";
+            return;
+        }
 
-  // Garde la session : le token sert aux requêtes protégées, le nom et le statut admin aux autres pages
-  localStorage.setItem("token", resultat.token);
-  localStorage.setItem("username", resultat.username);
-  localStorage.setItem("admin", resultat.admin === true ? "true" : "false");
+        // On garde les infos de session dans le navigateur
+        localStorage.setItem("token", resultat.token);
+        localStorage.setItem("username", resultat.username);
+        if (resultat.admin === true) {
+            localStorage.setItem("admin", "true");
+        } else {
+            localStorage.setItem("admin", "false");
+        }
 
-  // Tout le monde arrive sur la page d'accueil, l'admin y voit un lien en plus
-  afficherAccueil(resultat.username, resultat.admin === true);
-
- } catch (erreur) {
-  document.getElementById("messageConnexion").textContent =
-   "Impossible de contacter le serveur.";
- }
+        // On vide le formulaire et on va sur le profil
+        document.getElementById("nomConnexion").value = "";
+        document.getElementById("passwordConnexion").value = "";
+        message.textContent = "";
+        page("profil");
+    } catch (erreur) {
+        message.textContent = "Impossible de contacter le serveur.";
+    }
 }
 
-// Déconnexion : on efface la session (token compris) et on revient à l'accueil
 function deconnexion() {
- localStorage.removeItem("token");
- localStorage.removeItem("username");
- localStorage.removeItem("admin");
- utilisateur = null;
- page("accueil");
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
+    localStorage.removeItem("admin");
+    motDePasse = "";
+    page("accueil");
 }
 
-// Au chargement : si une session existe déjà (retour depuis compte.html par exemple), on affiche le menu
-document.addEventListener("DOMContentLoaded", function() {
- if (localStorage.getItem("token")) {
-  afficherAccueil(
-   localStorage.getItem("username"),
-   localStorage.getItem("admin") === "true"
-  );
- }
-});
 
-// Supprime le compte connecté après confirmation par mot de passe
+// =============================================
+// Supprimer mon compte (depuis le profil)
+// =============================================
 async function supprimerCompte() {
- let password = prompt("Entre ton mot de passe pour supprimer ton compte :");
- if (!password) return;
+    var password = prompt("Entre ton mot de passe pour supprimer ton compte :");
 
- const reponse = await fetch("/delete-account", {
-  method: "DELETE",
-  headers: {
-   "Content-Type": "application/json",
-   Authorization: "Bearer " + localStorage.getItem("token")
-  },
-  body: JSON.stringify({ password: password })
- });
+    // Si l'utilisateur annule ou ne tape rien, on arrête
+    if (!password) {
+        return;
+    }
 
- const resultat = await reponse.json();
- alert(resultat.message);
+    try {
+        var resultat = await envoyer("/delete-account", "DELETE", { password: password });
+        alert(resultat.donnees.message);
 
- // Compte supprimé : on ferme la session
- if (reponse.ok) {
-  deconnexion();
- }
+        // Si le compte est supprimé, on se déconnecte
+        if (resultat.ok) {
+            deconnexion();
+        }
+    } catch (erreur) {
+        alert("Impossible de contacter le serveur.");
+    }
+}
+
+
+// =============================================
+// Page "Mon compte"
+// =============================================
+
+// Remet la page à l'étape 1 (demande du mot de passe)
+function reinitialiserCompte() {
+    motDePasse = "";
+    document.getElementById("verifierMdp").value = "";
+    document.getElementById("messageVerif").textContent = "";
+    document.getElementById("messageModif").textContent = "";
+    document.getElementById("champNouveauMdp").value = "";
+    document.getElementById("zoneVerif").hidden = false;
+    document.getElementById("zoneInfos").hidden = true;
+}
+
+// Étape 1 : le serveur vérifie le mot de passe
+async function verifierMotDePasse() {
+    var message = document.getElementById("messageVerif");
+    var saisie = document.getElementById("verifierMdp").value;
+
+    try {
+        var resultat = await envoyer("/compte/infos", "POST", { password: saisie });
+
+        // Mauvais mot de passe : on affiche l'erreur
+        if (!resultat.ok) {
+            message.textContent = resultat.donnees.message;
+            return;
+        }
+
+        // On garde le mot de passe pour l'étape 2
+        motDePasse = saisie;
+
+        // On remplit le formulaire avec les infos reçues
+        document.getElementById("champLogin").value = resultat.donnees.username;
+        document.getElementById("champNom").value = resultat.donnees.nom || "";
+        document.getElementById("champPrenom").value = resultat.donnees.prenom || "";
+        document.getElementById("champMail").value = resultat.donnees.mail || "";
+
+        // On cache l'étape 1 et on montre l'étape 2
+        document.getElementById("zoneVerif").hidden = true;
+        document.getElementById("zoneInfos").hidden = false;
+    } catch (erreur) {
+        message.textContent = "Impossible de contacter le serveur.";
+    }
+}
+
+// Étape 2 : on enregistre les modifications
+async function modifierCompte() {
+    var message = document.getElementById("messageModif");
+    var nouveau = document.getElementById("champNouveauMdp").value;
+
+    try {
+        var resultat = await envoyer("/compte", "PUT", {
+            password: motDePasse,
+            nom: document.getElementById("champNom").value,
+            prenom: document.getElementById("champPrenom").value,
+            mail: document.getElementById("champMail").value,
+            nouveauPassword: nouveau
+        });
+
+        message.textContent = resultat.donnees.message;
+
+        // Si le mot de passe a changé, on retient le nouveau
+        if (resultat.ok && nouveau !== "") {
+            motDePasse = nouveau;
+            document.getElementById("champNouveauMdp").value = "";
+        }
+    } catch (erreur) {
+        message.textContent = "Impossible de contacter le serveur.";
+    }
+}
+
+
+// =============================================
+// Page "Administration"
+// =============================================
+
+// Récupère les comptes et remplit la liste déroulante
+async function chargerComptes(aSelectionner) {
+    var message = document.getElementById("messageAdmin");
+
+    try {
+        var resultat = await envoyer("/users", "GET");
+
+        if (!resultat.ok) {
+            message.textContent = resultat.donnees.message;
+            return;
+        }
+
+        comptes = resultat.donnees;
+
+        var liste = document.getElementById("listeUsers");
+        liste.innerHTML = "";
+        liste.appendChild(new Option("-- Choisir un compte --", ""));
+
+        // On ajoute chaque compte dans la liste
+        for (var i = 0; i < comptes.length; i++) {
+            var texte = comptes[i].username;
+            if (comptes[i].admin === 1) {
+                texte = texte + " (admin)";
+            }
+            liste.appendChild(new Option(texte, comptes[i].username));
+        }
+
+        liste.value = aSelectionner;
+        afficherCompte();
+    } catch (erreur) {
+        message.textContent = "Impossible de contacter le serveur.";
+    }
+}
+
+// Remplit le formulaire avec le compte choisi dans la liste
+function afficherCompte() {
+    var login = document.getElementById("listeUsers").value;
+    var compte = null;
+
+    // On cherche le compte qui correspond au login choisi
+    for (var i = 0; i < comptes.length; i++) {
+        if (comptes[i].username === login) {
+            compte = comptes[i];
+        }
+    }
+
+    // Aucun compte choisi : on cache le formulaire
+    if (compte === null) {
+        document.getElementById("zoneAdmin").hidden = true;
+        return;
+    }
+
+    document.getElementById("zoneAdmin").hidden = false;
+    document.getElementById("adminLogin").value = compte.username;
+    document.getElementById("adminNom").value = compte.nom || "";
+    document.getElementById("adminPrenom").value = compte.prenom || "";
+    document.getElementById("adminMail").value = compte.mail || "";
+    document.getElementById("adminAdmin").checked = (compte.admin === 1);
+    document.getElementById("adminNouveauMdp").value = "";
+    document.getElementById("messageAdmin").textContent = "";
+}
+
+// Modifie le compte choisi
+async function adminModifier() {
+    var login = document.getElementById("listeUsers").value;
+    var message = document.getElementById("messageAdmin");
+
+    try {
+        var resultat = await envoyer("/users/" + encodeURIComponent(login), "PUT", {
+            nom: document.getElementById("adminNom").value,
+            prenom: document.getElementById("adminPrenom").value,
+            mail: document.getElementById("adminMail").value,
+            admin: document.getElementById("adminAdmin").checked,
+            nouveauPassword: document.getElementById("adminNouveauMdp").value
+        });
+
+        // Si ça a marché, on recharge la liste
+        if (resultat.ok) {
+            await chargerComptes(login);
+        }
+        message.textContent = resultat.donnees.message;
+    } catch (erreur) {
+        message.textContent = "Impossible de contacter le serveur.";
+    }
+}
+
+// Supprime le compte choisi
+async function adminSupprimer() {
+    var login = document.getElementById("listeUsers").value;
+    var message = document.getElementById("messageAdmin");
+
+    // On demande confirmation
+    if (!confirm("Voulez-vous supprimer " + login + " ?")) {
+        return;
+    }
+
+    try {
+        var resultat = await envoyer("/users/" + encodeURIComponent(login), "DELETE");
+
+        if (resultat.ok) {
+            await chargerComptes("");
+        }
+        message.textContent = resultat.donnees.message;
+    } catch (erreur) {
+        message.textContent = "Impossible de contacter le serveur.";
+    }
+}
+
+
+// =============================================
+// Au chargement de la page
+// =============================================
+if (estConnecte()) {
+    page("profil");
+} else {
+    majMenu();
 }

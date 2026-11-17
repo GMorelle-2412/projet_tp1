@@ -8,97 +8,93 @@
 
 <body>
     <h1>Formulaire</h1>
+
+    <!-- Menu -->
     <nav>
-        <button style="background-color: #17775e;" color: white onclick="page('accueil')">Accueil</button>
-        <button style="background-color: #17775e;" color: white onclick="page('connexion')">Connexion</button>
-        <button style="background-color: #17775e;" color: white onclick="page('inscription')">Inscription</button>
-        <button style="background-color: #17775e; color: white;" onclick="page('accueil')">Accueil</button>
+        <button onclick="page('accueil')">Accueil</button>
+        <button id="navConnexion" onclick="page('connexion')">Connexion</button>
+        <button id="navInscription" onclick="page('inscription')">Inscription</button>
+        <button id="navProfil" onclick="page('profil')" hidden>Mon profil</button>
+        <button id="navCompte" onclick="page('compte')" hidden>Mon compte</button>
+        <button id="navAdmin" onclick="page('admin')" hidden>Administration</button>
     </nav>
 
+    <!-- Page Accueil -->
     <section id="accueil" class="page active">
         <h2>Bienvenue</h2>
         <p>Bienvenue sur notre projet</p>
     </section>
 
-        <section id="inscription" class="page">
+    <!-- Page Inscription -->
+    <section id="inscription" class="page">
         <h2>Inscription</h2>
-        <input
-            id="nom"
-            type="text"
-            placeholder="Nom d'utilisateur"
-            style="background-color: #17775e;"
-        >
-        <input
-            id="password"
-            type="password"
-            placeholder="Mot de passe"
-            style="background-color: #17775e;"
-        >
-        <input
-            id="nomFamille"
-            type="text"
-            placeholder="Nom"
-            style="background-color: #17775e;"
-        >
-        <input
-            id="prenom"
-            type="text"
-            placeholder="Prénom"
-            style="background-color: #17775e;"
-        >
-        <input
-            id="mail"
-            type="email"
-            placeholder="Adresse mail"
-            style="background-color: #17775e;"
-        >
-        <button onclick="inscription()">
-            S'inscrire
-        </button>
+        <input id="nom" type="text" placeholder="Nom d'utilisateur">
+        <input id="password" type="password" placeholder="Mot de passe">
+        <input id="nomFamille" type="text" placeholder="Nom">
+        <input id="prenom" type="text" placeholder="Prénom">
+        <input id="mail" type="email" placeholder="Adresse mail">
+        <button onclick="inscription()">S'inscrire</button>
         <p id="messageInscription"></p>
     </section>
 
+    <!-- Page Connexion -->
     <section id="connexion" class="page">
         <h2>Connexion</h2>
-        <input
-            id="nomConnexion"
-            type="text"
-            placeholder="Nom d'utilisateur"
-            style="background-color: #17775e;"
-        >
-        <input
-            id="passwordConnexion"
-            type="password"
-            placeholder="Mot de passe"
-            style="background-color: #17775e;"
-        >
-        <button onclick="connexion()">
-            Se connecter
-        </button>
+        <input id="nomConnexion" type="text" placeholder="Nom d'utilisateur">
+        <input id="passwordConnexion" type="password" placeholder="Mot de passe">
+        <button onclick="connexion()">Se connecter</button>
         <p id="messageConnexion"></p>
     </section>
 
+    <!-- Page Profil -->
     <section id="profil" class="page">
         <h2>Mon profil</h2>
-        <p>
-            Nom d'utilisateur :
-            <span id="profilNom"></span>
-        </p>
-        <a id="lienAdmin" href="admin.html" style="display:none">Administration</a>
-        <button onclick="deconnexion()">
-            Déconnexion
-        </button>
-        <button onclick="supprimerCompte()">
-            Supprimer mon compte
-        </button>
+        <p>Vous êtes connecté.</p>
+        <p>Nom d'utilisateur : <span id="profilNom"></span></p>
+        <button onclick="deconnexion()">Déconnexion</button>
+        <button onclick="supprimerCompte()">Supprimer mon compte</button>
     </section>
 
+    <!-- Page Mon compte -->
+    <section id="compte" class="page">
+        <h2>Mon compte</h2>
+
+        <!-- Étape 1 : vérifier le mot de passe -->
+        <div id="zoneVerif">
+            <p>Entre ton mot de passe pour modifier tes informations :</p>
+            <input id="verifierMdp" type="password" placeholder="Mot de passe">
+            <button onclick="verifierMotDePasse()">Vérifier</button>
+            <p id="messageVerif"></p>
+        </div>
+
+        <!-- Étape 2 : modifier les informations -->
+        <div id="zoneInfos" hidden>
+            <input id="champLogin" type="text" disabled>
+            <input id="champNom" type="text" placeholder="Nom">
+            <input id="champPrenom" type="text" placeholder="Prénom">
+            <input id="champMail" type="email" placeholder="Adresse mail">
+            <input id="champNouveauMdp" type="password" placeholder="Nouveau mot de passe (facultatif)">
+            <button onclick="modifierCompte()">Enregistrer</button>
+            <p id="messageModif"></p>
+        </div>
+    </section>
+
+    <!-- Page Administration -->
     <section id="admin" class="page">
         <h2>Administration</h2>
-        <div id="listeUtilisateurs"></div>
-        <button onclick="page('profil')">
-            Retour au profil
-        </button>
+        <select id="listeUsers" onchange="afficherCompte()"></select>
+
+        <div id="zoneAdmin" hidden>
+            <input id="adminLogin" type="text" disabled>
+            <input id="adminNom" type="text" placeholder="Nom">
+            <input id="adminPrenom" type="text" placeholder="Prénom">
+            <input id="adminMail" type="email" placeholder="Adresse mail">
+            <label><input id="adminAdmin" type="checkbox"> Administrateur</label>
+            <input id="adminNouveauMdp" type="password" placeholder="Nouveau mot de passe (facultatif)">
+            <button onclick="adminModifier()">Modifier</button>
+            <button onclick="adminSupprimer()">Supprimer</button>
+        </div>
+        <p id="messageAdmin"></p>
     </section>
 
     <script src="script.js"></script>
