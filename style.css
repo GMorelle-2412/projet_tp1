@@ -22,20 +22,7 @@ input {
     margin: 10px auto;
 }
 
-/* La case à cocher garde sa taille normale */
-input[type="checkbox"] {
-    display: inline;
-    width: auto;
-    margin: 0 5px;
-}
 
-/* La liste déroulante a la même largeur que les champs */
-select {
-    display: block;
-    width: 272px;
-    padding: 10px;
-    margin: 10px auto;
-}
 
 /* Une seule page visible à la fois */
 .page {
@@ -46,7 +33,3 @@ select {
     display: block;
 }
 
-/* Un élément avec l'attribut "hidden" est toujours caché */
-[hidden] {
-    display: none !important;
-}
